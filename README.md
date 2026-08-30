@@ -1,5 +1,29 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Supabase (крок 3)
+
+1. Скопіюй `.env.example` → `.env.local`
+2. **Cloud:** встав ключі з [Supabase Dashboard](https://supabase.com/dashboard) → Project Settings → API
+3. **Local:** запусти Docker, потім:
+
+```bash
+pnpm supabase:start
+pnpm supabase:status   # скопіюй URL та keys у .env.local
+```
+
+Перевірка підключення:
+
+```bash
+pnpm dev
+curl http://localhost:3000/api/health
+```
+
+Очікувано при валідному `.env.local` і доступному Supabase:
+
+```json
+{ "status": "ok", "app": "course-memo", "supabase": { "configured": true, "reachable": true } }
+```
+
 ## Getting Started
 
 First, run the development server:

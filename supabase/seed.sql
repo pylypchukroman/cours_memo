@@ -1,0 +1,2 @@
+-- Seed data for local development.
+-- Migrations will populate schema in later steps.
