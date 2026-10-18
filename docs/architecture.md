@@ -1,13 +1,13 @@
 # Course Memo — Architecture
 
-Студентський AI-помічник з довготривалою пам'яттю курсу. Відповіді формуються **лише** з завантажених VTT-транскриптів із цитуванням уроку та таймкоду.
+A student assistant with long-term course memory. Answers are formed **only** from uploaded VTT transcripts, with a citation to the lesson and timestamp.
 
-## Принципи
+## Principles
 
-1. **Context isolation** — AI бачить тільки матеріали вибраного курсу поточного користувача. Ізоляція забезпечується RLS у PostgreSQL, server-side перевіркою membership і фільтрацією retrieval за `course_id`. Промпт сам по собі не izoluye.
-2. **Evidence-first** — кожне фактичне твердження має citation (lesson, file, start/end time, excerpt). Без evidence → `insufficient_evidence`.
-3. **Immutable archive + structured memory** — сирий транскрипт не перезаписується; структурована пам'ять курсу накопичується з audit trail (`supersedes_item_id`).
-4. **No external knowledge** — без web search, без зовнішніх джерел, без «догадок» моделі поза транскриптами.
+1. **Context isolation** — the model sees only the selected course for the current user. Isolation comes from PostgreSQL RLS, a server-side membership check, and retrieval filtered by `course_id`. The prompt alone does not isolate context.
+2. **Evidence-first** — every factual claim has a citation (lesson, file, start/end time, excerpt). No evidence means `insufficient_evidence`.
+3. **Immutable archive + structured memory** — the raw transcript is never overwritten. Structured course memory accumulates with an audit trail (`supersedes_item_id`).
+4. **No external knowledge** — no web search, no outside sources, and no guesses beyond the transcripts.
 
 ## Tech stack
 
@@ -17,17 +17,17 @@
 | Auth & DB | Supabase Auth, PostgreSQL, pgvector, RLS |
 | Storage | Supabase Storage (private bucket) |
 | AI | OpenAI Responses API (`store: false`), Structured Outputs, embeddings |
-| Background jobs | Trigger.dev v3 |
+| Background jobs | Postgres `processing_jobs` + worker `pnpm jobs:dev` |
 | Tests | Vitest (unit/integration), Playwright (e2e) |
 
 ## Assumptions (MVP)
 
-- **Auth:** email + password / magic link через Supabase
-- **Course ownership:** один owner на курс (`course_members`); sharing пізніше
-- **UI language:** українська
-- **Schema:** `course_memory_items` замість окремих таблиць `tasks`, `concepts`, … — тип через `item_type` + JSONB `metadata`
-- **Raw extraction:** `lesson_events` — immutable output AI per lesson
-- **Background jobs:** Trigger.dev для VTT pipeline (parse → embed → extract → reconcile)
+- **Auth:** email + password / magic link via Supabase
+- **Course ownership:** one owner per course (`course_members`); sharing later
+- **UI language:** English
+- **Schema:** `course_memory_items` instead of separate `tasks`, `concepts`, … tables — type via `item_type` plus JSONB `metadata`
+- **Raw extraction:** `lesson_events` is the immutable model output per lesson
+- **Background jobs:** a `processing_jobs` table and the local worker `pnpm jobs:dev` (parse → embed → extract → reconcile). Trigger.dev is not used.
 
 ## Data layers
 
@@ -37,32 +37,32 @@
 source_files → transcript_segments → chunks (+ embedding)
 ```
 
-- Оригінальні VTT у private storage
-- Нормалізовані segments (speaker, text, start/end)
-- Chunks ~500–800 tokens з overlap для vector search
+- Original VTT files in private storage
+- Normalized segments (speaker, text, start/end)
+- Chunks of about 500–800 tokens with overlap for vector search
 
-### 2. Structured Course Memory
+### 2. Structured course memory
 
 ```
-lesson_events (per lesson, AI extraction)
+lesson_events (per lesson, model extraction)
     ↓ reconcile
 course_memory_items (+ course_memory_versions)
 ```
 
-- Події уроку: concepts, tasks, assessments, promises, corrections, …
-- Reconcile: add / supersede / cancel з історією, без silent overwrite
+- Lesson events: concepts, tasks, assessments, promises, corrections, …
+- Reconcile: add / supersede / cancel, with history and no silent overwrite
 
 ## Request flows
 
 ### Upload VTT
 
 ```
-Client → POST /api/.../upload
+Client → POST /api/courses/:courseId/upload
   → validate (mime, size, extension)
   → SHA-256 dedup
   → Supabase Storage
   → processing_jobs (pending)
-  → Trigger.dev: parse → segments → chunks → embed → extract → reconcile
+  → pnpm jobs:dev: parse → segments → chunks → embed → extract → reconcile
 ```
 
 ### Chat (local retrieval)
@@ -88,13 +88,13 @@ Classifier → query course_memory_items by type/status
 
 ## Security
 
-- Private storage bucket; signed URLs з коротким TTL
-- Service role key тільки на server / Trigger.dev
-- RLS на всіх user-owned таблицях
+- Private storage bucket; signed URLs with a short TTL
+- Service role key only on the server and in the `pnpm jobs:dev` worker
+- RLS on every user-owned table
 - Upload: max 5 MB, `.vtt` only
-- Rate limiting на upload і chat
-- Transcript content = data, not instructions (prompt injection defense)
-- Production logs: token usage only, без transcript text і full prompts
+- Rate limiting on upload and chat
+- Transcript content is data, not instructions (prompt-injection defense)
+- Production logs: token usage only, no transcript text and no full prompts
 
 ## Repository layout
 
@@ -102,8 +102,8 @@ Classifier → query course_memory_items by type/status
 src/
   app/           # pages + API routes
   components/    # UI (shadcn + domain)
-  lib/           # supabase, openai, vtt, pipeline, memory, chat, retrieval
-  trigger/       # Trigger.dev tasks
+  lib/           # supabase, openai, vtt, memory, chat, retrieval
+  pipeline/      # worker that claims processing_jobs
 supabase/
   migrations/    # schema, RLS, vector functions
 tests/
@@ -120,10 +120,11 @@ See [`.env.example`](../.env.example) for the full list.
 
 ## Implementation phases
 
-1. **Foundation (steps 1–6):** Next.js, auth, courses, dashboard
-2. **Vertical slice (steps 7–14):** VTT upload → embeddings → local chat with citations
-3. **Course Memory (steps 15–20):** extraction, reconcile, global queries, full UI, hardening
+1. **Accounts and courses:** Supabase Auth, `courses` / `course_members`, dashboard
+2. **Archive and cited chat:** VTT upload, worker, embeddings, chunk chat with citations
+3. **Course memory:** extraction, reconcile, global queries, memory UI
+4. **Hardening:** rate limits, citation checks, usage-only logs, eval set, integration tests
 
 ## Out of scope (MVP)
 
-Teacher dashboard, live recording, video analysis, LMS integrations, payments, mobile app, fine-tuning, complex agent orchestration.
+Teacher dashboard, live recording, video analysis, LMS integrations, payments, mobile app, fine-tuning, and complex agent orchestration.

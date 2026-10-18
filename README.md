@@ -1,24 +1,30 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Supabase (крок 3)
+## Supabase (step 3)
 
-1. Скопіюй `.env.example` → `.env.local`
-2. **Cloud:** встав ключі з [Supabase Dashboard](https://supabase.com/dashboard) → Project Settings → API
-3. **Local:** запусти Docker, потім:
+1. Copy `.env.example` to `.env.local`
+2. **Cloud:** paste keys from the [Supabase Dashboard](https://supabase.com/dashboard) → Project Settings → API
+3. **Local:** start Docker, then:
 
 ```bash
 pnpm supabase:start
-pnpm supabase:status   # скопіюй URL та keys у .env.local
+pnpm supabase:status   # copy the URL and keys into .env.local
 ```
 
-Перевірка підключення:
+Check the connection:
 
 ```bash
 pnpm dev
 curl http://localhost:3000/api/health
 ```
 
-Очікувано при валідному `.env.local` і доступному Supabase:
+VTT processing (a separate process, after a file is uploaded to a course):
+
+```bash
+pnpm jobs:dev
+```
+
+Expected with a valid `.env.local` and a reachable Supabase:
 
 ```json
 { "status": "ok", "app": "course-memo", "supabase": { "configured": true, "reachable": true } }

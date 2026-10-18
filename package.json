@@ -14,7 +14,8 @@
     "test:e2e:ui": "playwright test --ui",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
-    "supabase:status": "supabase status"
+    "supabase:status": "supabase status",
+    "jobs:dev": "tsx src/pipeline/worker.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -47,6 +48,7 @@
     "jsdom": "^30.0.1",
     "supabase": "^2.116.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vite": "^8.2.2",
     "vitest": "^4.1.11"

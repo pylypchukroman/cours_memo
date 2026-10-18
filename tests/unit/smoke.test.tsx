@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 
 describe("tooling smoke test", () => {
   it("renders shadcn Button", () => {
-    render(<Button>Тест</Button>);
-    expect(screen.getByRole("button", { name: "Тест" })).toBeInTheDocument();
+    render(<Button>Test</Button>);
+    expect(screen.getByRole("button", { name: "Test" })).toBeInTheDocument();
   });
 
   it("resolves path aliases", () => {
