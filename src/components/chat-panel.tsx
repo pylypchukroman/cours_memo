@@ -9,8 +9,8 @@ type Citation = {
   chunkId: string;
   lessonTitle: string;
   originalName: string;
-  startMs: number;
-  endMs: number;
+  startMs: number | null;
+  endMs: number | null;
   excerpt: string;
 };
 
@@ -22,6 +22,7 @@ type StreamEvent =
 
 export function ChatPanel({ courseId }: { courseId: string }) {
   const [question, setQuestion] = useState("");
+  const [unitCode, setUnitCode] = useState("");
   const [answer, setAnswer] = useState("");
   const [citations, setCitations] = useState<Citation[]>([]);
   const [status, setStatus] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export function ChatPanel({ courseId }: { courseId: string }) {
     const response = await fetch(`/api/courses/${courseId}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: question }),
+      body: JSON.stringify({ message: question, unitCode }),
     });
 
     if (!response.ok || !response.body) {
@@ -89,6 +90,15 @@ export function ChatPanel({ courseId }: { courseId: string }) {
     <div className="grid gap-4">
       <form onSubmit={onSubmit} className="grid gap-3">
         <label className="grid gap-1 text-sm">
+          Unit code filter
+          <input
+            value={unitCode}
+            onChange={(event) => setUnitCode(event.target.value)}
+            maxLength={40}
+            className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          />
+        </label>
+        <label className="grid gap-1 text-sm">
           Question
           <textarea
             value={question}
@@ -113,7 +123,10 @@ export function ChatPanel({ courseId }: { courseId: string }) {
           {citations.map((citation) => (
             <li key={citation.chunkId} className="rounded-lg border border-border px-3 py-2 text-sm">
               <p className="font-medium">
-                {citation.lessonTitle} · {formatTimestamp(citation.startMs)}–{formatTimestamp(citation.endMs)}
+                {citation.lessonTitle}
+                {citation.startMs != null && citation.endMs != null
+                  ? ` · ${formatTimestamp(citation.startMs)}–${formatTimestamp(citation.endMs)}`
+                  : ""}
               </p>
               <p className="text-muted-foreground">{citation.originalName}</p>
               <p className="mt-1">{citation.excerpt}</p>

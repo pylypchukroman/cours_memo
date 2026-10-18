@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 
 import { requireCourseMember } from "@/lib/courses";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeTimezone } from "@/lib/study/dates";
+import { parsePlainTranscript } from "@/lib/transcript/plain";
 import { parseVtt } from "@/lib/vtt/parse";
 
 export const runtime = "nodejs";
@@ -23,20 +25,33 @@ export async function POST(
   const form = await request.formData();
   const file = form.get("file");
   const lessonTitle = String(form.get("lessonTitle") ?? "").trim();
+  const lessonDate = String(form.get("lessonDate") ?? "").trim();
+  const timezone = normalizeTimezone(String(form.get("timezone") ?? ""));
+  const unitCode = String(form.get("unitCode") ?? "").trim();
+  const subject = String(form.get("subject") ?? "").trim();
 
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Add a .vtt file." }, { status: 400 });
+    return NextResponse.json({ error: "Add a .vtt or .txt file." }, { status: 400 });
   }
 
   const originalName = file.name.split(/[/\\]/).pop() ?? "";
-  if (!originalName.toLowerCase().endsWith(".vtt") || file.size <= 0 || file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "Use a .vtt file up to 5 MB." }, { status: 400 });
+  const extension = originalName.toLowerCase();
+  if ((!extension.endsWith(".vtt") && !extension.endsWith(".txt")) || file.size <= 0 || file.size > MAX_BYTES) {
+    return NextResponse.json({ error: "Use a .vtt or .txt file up to 5 MB." }, { status: 400 });
+  }
+
+  if (lessonDate && !/^\d{4}-\d{2}-\d{2}$/.test(lessonDate)) {
+    return NextResponse.json({ error: "Use a lesson date in YYYY-MM-DD format." }, { status: 400 });
+  }
+  if (unitCode.length > 40 || subject.length > 120) {
+    return NextResponse.json({ error: "Unit code or subject is too long." }, { status: 400 });
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const transcript = bytes.toString("utf8");
-  if (parseVtt(transcript).length === 0) {
-    return NextResponse.json({ error: "The file has no VTT cues." }, { status: 400 });
+  const transcript = bytes.toString("utf8").replace(/^\uFEFF/, "");
+  const cues = transcript.trimStart().startsWith("WEBVTT") ? parseVtt(transcript) : parsePlainTranscript(transcript);
+  if (cues.length === 0) {
+    return NextResponse.json({ error: "The file has no transcript text." }, { status: 400 });
   }
 
   const { data: allowed, error: limitError } = await access.supabase.rpc("consume_rate_limit", {
@@ -63,7 +78,7 @@ export async function POST(
   const storagePath = `${courseId}/${fileId}.vtt`;
 
   const uploaded = await admin.storage.from("transcripts").upload(storagePath, bytes, {
-    contentType: "text/vtt",
+    contentType: extension.endsWith(".txt") ? "text/plain" : "text/vtt",
     upsert: false,
   });
   if (uploaded.error) {
@@ -75,7 +90,11 @@ export async function POST(
     course_id: courseId,
     uploaded_by: access.user.id,
     original_name: originalName,
-    lesson_title: lessonTitle || originalName.replace(/\.vtt$/i, ""),
+    lesson_title: lessonTitle || originalName.replace(/\.(vtt|txt)$/i, ""),
+    lesson_date: lessonDate || null,
+    timezone,
+    unit_code: unitCode || null,
+    subject: subject || null,
     storage_path: storagePath,
     sha256,
     byte_size: bytes.byteLength,

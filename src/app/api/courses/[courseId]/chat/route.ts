@@ -60,8 +60,9 @@ export async function POST(
     return NextResponse.json({ error: "Too many questions. Try again in an hour." }, { status: 429 });
   }
 
-  const body = (await request.json().catch(() => null)) as { message?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { message?: unknown; unitCode?: unknown } | null;
   const message = typeof body?.message === "string" ? body.message.trim() : "";
+  const unitCode = typeof body?.unitCode === "string" ? body.unitCode.trim() : "";
   if (!message || message.length > 2000) {
     return NextResponse.json({ error: "A question can be at most 2000 characters." }, { status: 400 });
   }
@@ -115,8 +116,8 @@ export async function POST(
       id: string;
       source_file_id: string;
       text: string;
-      start_ms: number;
-      end_ms: number;
+      start_ms: number | null;
+      end_ms: number | null;
       original_name: string;
       lesson_title: string | null;
     }) => ({
@@ -128,6 +129,17 @@ export async function POST(
       originalName: row.original_name,
       lessonTitle: row.lesson_title,
     }));
+  }
+
+  if (unitCode && chunks.length > 0) {
+    const ids = [...new Set(chunks.map((chunk) => chunk.sourceFileId))];
+    const { data: files } = await access.supabase.from("source_files").select("id, unit_code").in("id", ids);
+    const allowed = new Set(
+      (files ?? [])
+        .filter((file) => (file.unit_code ?? "").toLowerCase() === unitCode.toLowerCase())
+        .map((file) => file.id),
+    );
+    chunks = chunks.filter((chunk) => allowed.has(chunk.sourceFileId));
   }
 
   try {
@@ -148,8 +160,8 @@ function mapChunks(
     id: string;
     source_file_id: string;
     text: string;
-    start_ms: number;
-    end_ms: number;
+    start_ms: number | null;
+    end_ms: number | null;
     source_files: { original_name: string; lesson_title: string | null } | { original_name: string; lesson_title: string | null }[] | null;
   }>,
 ): RetrievedChunk[] {

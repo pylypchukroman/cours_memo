@@ -1,8 +1,8 @@
 export type Cue = {
   speaker: string | null;
   text: string;
-  startMs: number;
-  endMs: number;
+  startMs: number | null;
+  endMs: number | null;
 };
 
 const TIMECODE =

@@ -2,8 +2,8 @@ import type { Cue } from "@/lib/vtt/parse";
 
 export type ChunkDraft = {
   text: string;
-  startMs: number;
-  endMs: number;
+  startMs: number | null;
+  endMs: number | null;
   tokenCount: number;
 };
 

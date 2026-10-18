@@ -11,8 +11,10 @@ import {
   type MemoryEvent,
   type ReconcileAction,
 } from "@/lib/memory/types";
+import { ensureStudyPack } from "@/pipeline/study-pack";
 import { chunkCues } from "@/lib/vtt/chunk";
 import { parseVtt, type Cue } from "@/lib/vtt/parse";
+import { parsePlainTranscript } from "@/lib/transcript/plain";
 
 const MAX_ATTEMPTS = 3;
 
@@ -146,7 +148,8 @@ async function ensureSegments(supabase: SupabaseClient, job: JobRow) {
     throw new Error("Could not read the file from storage");
   }
 
-  const cues = parseVtt(await downloaded.data.text());
+  const transcript = (await downloaded.data.text()).replace(/^\uFEFF/, "");
+  const cues = transcript.trimStart().startsWith("WEBVTT") ? parseVtt(transcript) : parsePlainTranscript(transcript);
   if (cues.length === 0) {
     throw new Error("The file has no VTT cues");
   }
@@ -506,6 +509,8 @@ export async function processNextJob(supabase: SupabaseClient): Promise<boolean>
     await ensureEvents(supabase, job);
     await setStage(supabase, job.id, "reconcile");
     await reconcile(supabase, job);
+    await setStage(supabase, job.id, "study");
+    await ensureStudyPack(supabase, job);
     await supabase.from("processing_jobs").update({ status: "done", stage: "done", error: null }).eq("id", job.id);
   } catch (caught) {
     const message = publicError(caught);

@@ -2,8 +2,8 @@ export type RetrievedChunk = {
   id: string;
   sourceFileId: string;
   text: string;
-  startMs: number;
-  endMs: number;
+  startMs: number | null;
+  endMs: number | null;
   originalName: string;
   lessonTitle: string | null;
 };
@@ -18,8 +18,8 @@ export type ValidCitation = {
   sourceFileId: string;
   lessonTitle: string;
   originalName: string;
-  startMs: number;
-  endMs: number;
+  startMs: number | null;
+  endMs: number | null;
   excerpt: string;
 };
 
