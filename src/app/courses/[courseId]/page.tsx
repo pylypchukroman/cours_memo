@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { ChatPanel } from "@/components/chat-panel";
 import { JobPoller } from "@/components/job-poller";
 import { LessonStudy } from "@/components/lesson-study";
 import { UploadForm } from "@/components/upload-form";
@@ -176,16 +175,6 @@ export default async function CoursePage({ params }: { params: Promise<{ courseI
           )}
         </section>
       </div>
-
-      <Card>
-        <CardHeader>
-        <CardTitle>Ask my lessons</CardTitle>
-        <CardDescription>Answers cite this course. Add a unit code to limit the search.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChatPanel courseId={courseId} />
-        </CardContent>
-      </Card>
 
       <section className="grid gap-4">
         <h2 className="text-lg font-medium">Lesson study</h2>
