@@ -92,6 +92,7 @@ export async function createStructuredResponse<T>(options: {
   const payload = await postOpenAI("/responses", {
     model: options.model,
     store: false,
+    reasoning: { effort: "none" },
     max_output_tokens: options.maxOutputTokens ?? 2000,
     instructions: options.instructions,
     input: options.input,

@@ -45,7 +45,7 @@ async function extractCore(model: string, material: string, courseId: string) {
     schema: CORE_STUDY_SCHEMA,
     instructions: studyInstructions(),
     input: material,
-    maxOutputTokens: 8000,
+    maxOutputTokens: 4000,
   });
   logModelUse({
     route: "pipeline.study",
@@ -65,7 +65,7 @@ async function extractMaterials(model: string, material: string, courseId: strin
     schema: MATERIALS_STUDY_SCHEMA,
     instructions: studyInstructions(),
     input: material,
-    maxOutputTokens: 8000,
+    maxOutputTokens: 4000,
   });
   logModelUse({
     route: "pipeline.study",
@@ -137,7 +137,7 @@ export async function ensureStudyPack(
   const drafts: StudyDraft[] = [];
   let materialsFailed = false;
 
-  for (const group of batches(rows, 12)) {
+  for (const group of batches(rows, 24)) {
     const material = `${header}\n${group.map(formatSegment).join("\n")}`;
     const core = await extractCore(extractionModel, material, job.course_id);
     let materials: Pick<StudyDraft, "commands_and_code" | "troubleshooting_entries" | "glossary" | "flashcards" | "quiz_questions"> = {

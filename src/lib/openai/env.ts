@@ -14,7 +14,7 @@ export function getOpenAIEnv(): OpenAIEnv {
 
   return {
     apiKey,
-    extractionModel: process.env.OPENAI_EXTRACTION_MODEL?.trim() || "gpt-5.4-mini",
+    extractionModel: process.env.OPENAI_EXTRACTION_MODEL?.trim() || "gpt-5.4-nano",
     embeddingModel: process.env.OPENAI_EMBEDDING_MODEL?.trim() || "text-embedding-3-small",
   };
 }
