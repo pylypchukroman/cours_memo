@@ -17,8 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Course Memo",
-  description:
-    "A student assistant with course memory and source citations.",
+  description: "Source-linked study materials generated from your lesson transcripts.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

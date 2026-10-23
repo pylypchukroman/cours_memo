@@ -1,6 +1,6 @@
 const ALLOWED_KEYS = ["at", "route", "model", "inputTokens", "outputTokens", "userId", "courseId"] as const;
 
-export type ModelUseLog = {
+type ModelUseLog = {
   route: string;
   model: string;
   inputTokens?: number;

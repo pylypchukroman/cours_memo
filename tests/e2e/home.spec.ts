@@ -4,7 +4,7 @@ test("home page shows Course Memo landing", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "An assistant with course memory",
+    "Study materials grounded in your lessons",
   );
   await expect(page.getByRole("link", { name: "Create account" })).toBeVisible();
 });

@@ -10,8 +10,8 @@ import { requireCourseMember } from "@/lib/courses";
 import { ITEM_STATUS_LABELS, ITEM_TYPE_LABELS, VERSION_ACTION_LABELS } from "@/lib/memory/labels";
 import type { ItemStatus, ItemType } from "@/lib/memory/types";
 import { collectDashboard } from "@/lib/study/dashboard";
-import type { ItemState, ReviewStatus, StudyPack } from "@/lib/study/types";
-import { isCompletionStatus, isStudyPack, overlayStudyState } from "@/lib/study/validate";
+import type { ItemState, StudyPack } from "@/lib/study/types";
+import { isCompletionStatus, isReviewStatus, isStudyPack, overlayStudyState } from "@/lib/study/validate";
 import { formatTimestamp } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -36,12 +36,12 @@ export default async function CoursePage({ params }: { params: Promise<{ courseI
       supabase.from("courses").select("title, description").eq("id", courseId).single(),
       supabase
         .from("source_files")
-        .select("id, original_name, lesson_title, lesson_date, unit_code, subject, byte_size, created_at")
+        .select("id, original_name, lesson_title, lesson_date, unit_code, subject, created_at")
         .eq("course_id", courseId)
         .order("created_at", { ascending: false }),
       supabase
         .from("processing_jobs")
-        .select("source_file_id, status, stage, error")
+        .select("source_file_id, status, error")
         .eq("course_id", courseId),
       supabase
         .from("course_memory_items")
@@ -71,32 +71,29 @@ export default async function CoursePage({ params }: { params: Promise<{ courseI
   const packByFile = new Map(
     (packs ?? []).flatMap((row) => (isStudyPack(row.pack) ? [[row.source_file_id, row.pack as StudyPack] as const] : [])),
   );
-  const stateRows = states ?? [];
-  const reviews = new Set<ReviewStatus>(["pending", "confirmed", "corrected", "dismissed"]);
+  const statesByFile = new Map<string, Record<string, ItemState>>();
+  for (const state of states ?? []) {
+    if (!isCompletionStatus(state.completion_status) || !isReviewStatus(state.review_status)) {
+      continue;
+    }
+    const overlay = statesByFile.get(state.source_file_id) ?? {};
+    overlay[state.item_key] = {
+      completionStatus: state.completion_status,
+      reviewStatus: state.review_status,
+      note: state.note,
+    };
+    statesByFile.set(state.source_file_id, overlay);
+  }
   const dashboard = collectDashboard(
     (files ?? []).flatMap((file) => {
       const pack = packByFile.get(file.id);
       if (!pack) {
         return [];
       }
-      const overlay: Record<string, ItemState> = {};
-      for (const state of stateRows) {
-        if (state.source_file_id !== file.id || !isCompletionStatus(state.completion_status) || !reviews.has(state.review_status as ReviewStatus)) {
-          continue;
-        }
-        overlay[state.item_key] = {
-          completionStatus: state.completion_status,
-          reviewStatus: state.review_status as ReviewStatus,
-          note: state.note,
-        };
-      }
+      const overlay = statesByFile.get(file.id) ?? {};
       return [
         {
-          courseId,
-          courseTitle: course.title,
           lessonId: file.id,
-          lessonTitle: file.lesson_title || file.original_name,
-          unitCode: file.unit_code,
           pack: overlayStudyState(pack, overlay),
         },
       ];
@@ -133,8 +130,8 @@ export default async function CoursePage({ params }: { params: Promise<{ courseI
             ))}
           </ul>
         )}
-        {dashboard.review.length > 0 ? (
-          <p className="text-sm text-muted-foreground">{dashboard.review.length} items need review because a date, requirement, or quote is uncertain.</p>
+        {dashboard.reviewCount > 0 ? (
+          <p className="text-sm text-muted-foreground">{dashboard.reviewCount} items need review because a date, requirement, or quote is uncertain.</p>
         ) : null}
       </section>
 
@@ -179,17 +176,7 @@ export default async function CoursePage({ params }: { params: Promise<{ courseI
       <section className="grid gap-4">
         <h2 className="text-lg font-medium">Lesson study</h2>
         {(files ?? []).map((file) => {
-          const overlay: Record<string, ItemState> = {};
-          for (const state of stateRows) {
-            if (state.source_file_id !== file.id || !isCompletionStatus(state.completion_status) || !reviews.has(state.review_status as ReviewStatus)) {
-              continue;
-            }
-            overlay[state.item_key] = {
-              completionStatus: state.completion_status,
-              reviewStatus: state.review_status as ReviewStatus,
-              note: state.note,
-            };
-          }
+          const overlay = statesByFile.get(file.id) ?? {};
           const pack = packByFile.get(file.id) ?? null;
           return (
             <LessonStudy

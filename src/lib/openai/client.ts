@@ -7,7 +7,7 @@ type Usage = {
   outputTokens: number;
 };
 
-export class OpenAIRequestError extends Error {
+class OpenAIRequestError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "OpenAIRequestError";
@@ -54,31 +54,6 @@ function readOutputText(payload: unknown): string {
   }
 
   return text;
-}
-
-export async function embedTexts(inputs: string[]): Promise<{ vectors: number[][]; usage: Usage }> {
-  const { embeddingModel } = getOpenAIEnv();
-  const vectors: number[][] = [];
-  const usage = { inputTokens: 0, outputTokens: 0 };
-
-  for (let index = 0; index < inputs.length; index += 64) {
-    const batch = inputs.slice(index, index + 64);
-    const payload = await postOpenAI("/embeddings", {
-      model: embeddingModel,
-      input: batch,
-    });
-    const data = (payload as { data?: Array<{ embedding: number[]; index: number }> }).data ?? [];
-    const ordered = [...data].sort((left, right) => left.index - right.index);
-    if (ordered.length !== batch.length) {
-      throw new OpenAIRequestError("OpenAI embeddings response was incomplete");
-    }
-    vectors.push(...ordered.map((item) => item.embedding));
-    const batchUsage = readUsage(payload);
-    usage.inputTokens += batchUsage.inputTokens;
-    usage.outputTokens += batchUsage.outputTokens;
-  }
-
-  return { vectors, usage };
 }
 
 export async function createStructuredResponse<T>(options: {

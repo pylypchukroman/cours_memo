@@ -1,3 +1,12 @@
+import {
+  EVIDENCE_QUALITIES,
+  EXTRACTED_COMPLETIONS,
+  ORIGINS,
+  REQUIREMENT_LEVELS,
+  TASK_CATEGORIES,
+  TASK_TIMINGS,
+} from "@/lib/study/types";
+
 const sourceSchema = {
   type: "object",
   additionalProperties: false,
@@ -41,13 +50,13 @@ export const CORE_STUDY_SCHEMA = objectSchema({
     items: objectSchema({
       title: { type: "string" },
       description: { type: "string" },
-      category: { type: "string", enum: ["homework", "assessment", "lab", "reading", "install", "preparation", "other"] },
-      requirement_level: { type: "string", enum: ["required", "optional", "suggestion"] },
-      timing: { type: "string", enum: ["during_lesson", "assigned_later", "unknown"] },
-      origin: { type: "string", enum: ["explicit", "inferred", "generated"] },
-      evidence_quality: { type: "string", enum: ["clear", "ambiguous", "conflicting"] },
+      category: { type: "string", enum: [...TASK_CATEGORIES] },
+      requirement_level: { type: "string", enum: [...REQUIREMENT_LEVELS] },
+      timing: { type: "string", enum: [...TASK_TIMINGS] },
+      origin: { type: "string", enum: [...ORIGINS] },
+      evidence_quality: { type: "string", enum: [...EVIDENCE_QUALITIES] },
       due_text: { type: ["string", "null"] },
-      extracted_completion: { type: "string", enum: ["todo", "done_in_class", "unknown"] },
+      extracted_completion: { type: "string", enum: [...EXTRACTED_COMPLETIONS] },
       dependency_titles: stringList,
       sources: sourceList,
       review_flags: stringList,
@@ -68,8 +77,8 @@ export const CORE_STUDY_SCHEMA = objectSchema({
       teacher_clarifications: stringList,
       common_mistakes: stringList,
       tools: stringList,
-      origin: { type: "string", enum: ["explicit", "inferred", "generated"] },
-      evidence_quality: { type: "string", enum: ["clear", "ambiguous", "conflicting"] },
+      origin: { type: "string", enum: [...ORIGINS] },
+      evidence_quality: { type: "string", enum: [...EVIDENCE_QUALITIES] },
       conflicts: {
         type: "array",
         items: objectSchema({
@@ -159,7 +168,7 @@ export const MATERIALS_STUDY_SCHEMA = objectSchema({
       explanation: { type: "string" },
       example: { type: ["string", "null"] },
       related_terms: stringList,
-      origin: { type: "string", enum: ["explicit", "inferred", "generated"] },
+      origin: { type: "string", enum: [...ORIGINS] },
       sources: sourceList,
     }),
   },
@@ -187,7 +196,7 @@ export const MATERIALS_STUDY_SCHEMA = objectSchema({
   },
 });
 
-export function explanationLanguage(): string {
+function explanationLanguage(): string {
   const value = process.env.STUDY_EXPLANATION_LANGUAGE?.trim() ?? "";
   if (!value || value.length > 40) {
     return "English";

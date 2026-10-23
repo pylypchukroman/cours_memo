@@ -2,6 +2,25 @@
 
 import { deleteLesson, rebuildStudyPack, setStudyState } from "@/app/courses/study-actions";
 import { Button } from "@/components/ui/button";
+import {
+  COMPLETION_STATUSES,
+  REVIEW_STATUSES,
+  type CompletionStatus,
+  type ReviewStatus,
+} from "@/lib/study/types";
+
+const COMPLETION_LABELS: Record<CompletionStatus, string> = {
+  todo: "To do",
+  done: "Done",
+  unknown: "Unknown",
+};
+
+const REVIEW_LABELS: Record<ReviewStatus, string> = {
+  pending: "Pending",
+  confirmed: "Confirmed",
+  corrected: "Corrected",
+  dismissed: "Dismissed",
+};
 
 export function ConfirmSubmit({
   action,
@@ -47,8 +66,8 @@ export function StudyStateForm({
   courseId: string;
   sourceFileId: string;
   itemKey: string;
-  completionStatus: string;
-  reviewStatus: string;
+  completionStatus: CompletionStatus;
+  reviewStatus: ReviewStatus;
   note: string | null;
 }) {
   return (
@@ -63,9 +82,9 @@ export function StudyStateForm({
           defaultValue={completionStatus}
           className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm text-foreground"
         >
-          <option value="todo">To do</option>
-          <option value="done">Done</option>
-          <option value="unknown">Unknown</option>
+          {COMPLETION_STATUSES.map((status) => (
+            <option key={status} value={status}>{COMPLETION_LABELS[status]}</option>
+          ))}
         </select>
       </label>
       <label className="grid gap-1 text-xs text-muted-foreground">
@@ -75,10 +94,9 @@ export function StudyStateForm({
           defaultValue={reviewStatus}
           className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm text-foreground"
         >
-          <option value="pending">Pending</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="corrected">Corrected</option>
-          <option value="dismissed">Dismissed</option>
+          {REVIEW_STATUSES.map((status) => (
+            <option key={status} value={status}>{REVIEW_LABELS[status]}</option>
+          ))}
         </select>
       </label>
       <label className="grid min-w-40 flex-1 gap-1 text-xs text-muted-foreground">

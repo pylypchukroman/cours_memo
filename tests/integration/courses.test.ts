@@ -27,7 +27,11 @@ loadEnv();
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-const enabled = url.startsWith("http") && anonKey.length > 20 && serviceKey.length > 20;
+const enabled =
+  process.env.RUN_INTEGRATION === "1" &&
+  url.startsWith("http") &&
+  anonKey.length > 20 &&
+  serviceKey.length > 20;
 
 describe.skipIf(!enabled)("course membership isolation", () => {
   const admin = enabled
@@ -97,14 +101,14 @@ describe.skipIf(!enabled)("course membership isolation", () => {
     expect((await anon.from("courses").select("id")).data ?? []).toEqual([]);
   });
 
-  it("returns chunks only to course members", async () => {
+  it("returns transcript chunks only to course members", async () => {
     const source = await admin
       .from("source_files")
       .insert({
         course_id: courseId,
         uploaded_by: userIds[0],
         original_name: "lecture.vtt",
-        lesson_title: "Похідні",
+        lesson_title: "Derivatives",
         storage_path: `${courseId}/integration.vtt`,
         sha256: `sha-${stamp}`,
         byte_size: 128,
@@ -113,33 +117,23 @@ describe.skipIf(!enabled)("course membership isolation", () => {
       .single();
     expect(source.error).toBeNull();
 
-    const embedding = Array.from({ length: 1536 }, (_, index) => (index === 0 ? 1 : 0));
     const chunk = await admin
       .from("chunks")
       .insert({
         source_file_id: source.data?.id,
         course_id: courseId,
         ordinal: 0,
-        text: "Похідна показує швидкість зміни.",
+        text: "A derivative describes a rate of change.",
         start_ms: 1000,
         end_ms: 4000,
         token_count: 8,
-        embedding: JSON.stringify(embedding),
       })
       .select("id")
       .single();
     expect(chunk.error).toBeNull();
 
-    const match = await ownerClient.rpc("match_course_chunks", {
-      target_course_id: courseId,
-      query_embedding: JSON.stringify(embedding),
-      match_count: 5,
-    });
-    const hidden = await otherClient.rpc("match_course_chunks", {
-      target_course_id: courseId,
-      query_embedding: JSON.stringify(embedding),
-      match_count: 5,
-    });
+    const match = await ownerClient.from("chunks").select("id").eq("id", chunk.data?.id);
+    const hidden = await otherClient.from("chunks").select("id").eq("id", chunk.data?.id);
 
     expect(match.error).toBeNull();
     expect(match.data).toHaveLength(1);

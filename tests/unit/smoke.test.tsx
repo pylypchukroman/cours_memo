@@ -8,8 +8,4 @@ describe("tooling smoke test", () => {
     render(<Button>Test</Button>);
     expect(screen.getByRole("button", { name: "Test" })).toBeInTheDocument();
   });
-
-  it("resolves path aliases", () => {
-    expect(true).toBe(true);
-  });
 });

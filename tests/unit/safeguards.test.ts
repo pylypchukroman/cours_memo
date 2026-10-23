@@ -22,8 +22,8 @@ describe("logModelUse", () => {
     const transcript = "секретний текст транскрипту";
 
     logModelUse({
-      route: "chat.answer",
-      model: "gpt-5.4-mini",
+      route: "pipeline.study",
+      model: "gpt-5.4-nano",
       inputTokens: 12,
       outputTokens: 4,
       userId: "user-1",
@@ -33,7 +33,7 @@ describe("logModelUse", () => {
     const line = String(spy.mock.calls[0]?.[0]);
     expect(line).not.toContain(transcript);
     expect(JSON.parse(line)).toMatchObject({
-      route: "chat.answer",
+      route: "pipeline.study",
       inputTokens: 12,
       outputTokens: 4,
     });

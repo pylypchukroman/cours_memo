@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { parseTranscript } from "@/lib/transcript/parse";
 import { chunkCues, estimateTokens } from "@/lib/vtt/chunk";
 import { parseTimestamp, parseVtt } from "@/lib/vtt/parse";
 
@@ -27,6 +28,13 @@ describe("parseVtt", () => {
     const cues = parseVtt("WEBVTT\n\nNOTE skip me\n\n00:00.000 --> 00:01.000\nHello &amp; welcome");
     expect(cues).toEqual([
       { speaker: null, text: "Hello & welcome", startMs: 0, endMs: 1000 },
+    ]);
+  });
+
+  it("detects VTT after a byte-order mark", () => {
+    const cues = parseTranscript("\uFEFFWEBVTT\n\n00:00.000 --> 00:01.000\nHello");
+    expect(cues).toEqual([
+      { speaker: null, text: "Hello", startMs: 0, endMs: 1000 },
     ]);
   });
 });

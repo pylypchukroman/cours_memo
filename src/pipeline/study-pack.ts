@@ -18,6 +18,12 @@ type SegmentRow = {
   end_ms: number | null;
 };
 
+type MaterialsDraft = Pick<
+  StudyDraft,
+  "commands_and_code" | "troubleshooting_entries" | "glossary" | "flashcards" | "quiz_questions"
+>;
+type CoreDraft = Omit<StudyDraft, keyof MaterialsDraft>;
+
 function formatSegment(segment: SegmentRow): string {
   const time =
     segment.start_ms == null || segment.end_ms == null
@@ -38,31 +44,17 @@ function batches<T>(items: T[], size: number): T[][] {
   return groups;
 }
 
-async function extractCore(model: string, material: string, courseId: string) {
-  const result = await createStructuredResponse<Omit<StudyDraft, "commands_and_code" | "troubleshooting_entries" | "glossary" | "flashcards" | "quiz_questions">>({
+async function extractStudyPart<T>(
+  model: string,
+  material: string,
+  courseId: string,
+  schemaName: string,
+  schema: Record<string, unknown>,
+): Promise<T> {
+  const result = await createStructuredResponse<T>({
     model,
-    schemaName: "lesson_core",
-    schema: CORE_STUDY_SCHEMA,
-    instructions: studyInstructions(),
-    input: material,
-    maxOutputTokens: 4000,
-  });
-  logModelUse({
-    route: "pipeline.study",
-    model: result.model,
-    inputTokens: result.usage.inputTokens,
-    outputTokens: result.usage.outputTokens,
-    userId: "worker",
-    courseId,
-  });
-  return result.data;
-}
-
-async function extractMaterials(model: string, material: string, courseId: string) {
-  const result = await createStructuredResponse<Pick<StudyDraft, "commands_and_code" | "troubleshooting_entries" | "glossary" | "flashcards" | "quiz_questions">>({
-    model,
-    schemaName: "lesson_materials",
-    schema: MATERIALS_STUDY_SCHEMA,
+    schemaName,
+    schema,
     instructions: studyInstructions(),
     input: material,
     maxOutputTokens: 4000,
@@ -139,8 +131,14 @@ export async function ensureStudyPack(
 
   for (const group of batches(rows, 24)) {
     const material = `${header}\n${group.map(formatSegment).join("\n")}`;
-    const core = await extractCore(extractionModel, material, job.course_id);
-    let materials: Pick<StudyDraft, "commands_and_code" | "troubleshooting_entries" | "glossary" | "flashcards" | "quiz_questions"> = {
+    const core = await extractStudyPart<CoreDraft>(
+      extractionModel,
+      material,
+      job.course_id,
+      "lesson_core",
+      CORE_STUDY_SCHEMA,
+    );
+    let materials: MaterialsDraft = {
       commands_and_code: [],
       troubleshooting_entries: [],
       glossary: [],
@@ -148,7 +146,13 @@ export async function ensureStudyPack(
       quiz_questions: [],
     };
     try {
-      materials = await extractMaterials(extractionModel, material, job.course_id);
+      materials = await extractStudyPart<MaterialsDraft>(
+        extractionModel,
+        material,
+        job.course_id,
+        "lesson_materials",
+        MATERIALS_STUDY_SCHEMA,
+      );
     } catch {
       materialsFailed = true;
     }

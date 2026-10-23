@@ -2,19 +2,20 @@ import { createHash } from "node:crypto";
 
 import { resolveDue } from "@/lib/study/dates";
 import {
+  COMPLETION_STATUSES,
   EVIDENCE_QUALITIES,
   EXTRACTED_COMPLETIONS,
   ORIGINS,
+  REVIEW_STATUSES,
   REQUIREMENT_LEVELS,
   SCHEMA_VERSION,
   TASK_CATEGORIES,
   TASK_TIMINGS,
   type CompletionStatus,
   type DraftSource,
-  type EvidenceQuality,
   type ItemState,
   type Origin,
-  type RequirementLevel,
+  type ReviewStatus,
   type SourceRef,
   type StudyAssessment,
   type StudyConflict,
@@ -22,8 +23,6 @@ import {
   type StudyDraft,
   type StudyPack,
   type StudyTask,
-  type TaskCategory,
-  type TaskTiming,
 } from "@/lib/study/types";
 
 const EMBEDDED_INSTRUCTION =
@@ -36,7 +35,7 @@ function collapse(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
-export function itemKey(kind: string, title: string): string {
+function itemKey(kind: string, title: string): string {
   const normalized = collapse(title).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   return createHash("sha256").update(`${kind}:${normalized}`).digest("hex").slice(0, 16);
 }
@@ -459,7 +458,6 @@ export function buildStudyPack(draft: StudyDraft, context: StudyContext): StudyP
     flashcards: cards,
     quiz_questions: quiz,
     teacher_questions: teacherQuestions,
-    cross_lesson_connections: notes(draft.overview.connections, "explicit", context, uniqueWarnings),
     conflicts,
     review_flags: [...new Set(draft.review_flags.map(collapse).filter(Boolean))],
     processing_warnings: [...new Set(uniqueWarnings)],
@@ -539,30 +537,41 @@ export function mergeDrafts(drafts: StudyDraft[]): StudyDraft {
   return merged;
 }
 
-export function isRequirementLevel(value: string): value is RequirementLevel {
-  return REQUIREMENT_LEVELS.some((item) => item === value);
-}
-
-export function isTaskCategory(value: string): value is TaskCategory {
-  return TASK_CATEGORIES.some((item) => item === value);
-}
-
-export function isTaskTiming(value: string): value is TaskTiming {
-  return TASK_TIMINGS.some((item) => item === value);
-}
-
-export function isEvidenceQuality(value: string): value is EvidenceQuality {
-  return EVIDENCE_QUALITIES.some((item) => item === value);
-}
-
 export function isStudyPack(value: unknown): value is StudyPack {
   if (!value || typeof value !== "object") {
     return false;
   }
-  const pack = value as StudyPack;
-  return pack.schema_version === SCHEMA_VERSION && Array.isArray(pack.tasks) && pack.overview !== undefined;
+  const pack = value as Record<string, unknown>;
+  const overview = pack.overview;
+  if (
+    pack.schema_version !== SCHEMA_VERSION ||
+    !overview ||
+    typeof overview !== "object" ||
+    !Array.isArray((overview as Record<string, unknown>).topics)
+  ) {
+    return false;
+  }
+
+  return [
+    "tasks",
+    "assessments",
+    "lab_guides",
+    "commands_and_code",
+    "troubleshooting_entries",
+    "glossary",
+    "flashcards",
+    "quiz_questions",
+    "teacher_questions",
+    "conflicts",
+    "review_flags",
+    "processing_warnings",
+  ].every((key) => Array.isArray(pack[key]));
 }
 
 export function isCompletionStatus(value: string): value is CompletionStatus {
-  return value === "todo" || value === "done" || value === "unknown";
+  return COMPLETION_STATUSES.some((status) => status === value);
+}
+
+export function isReviewStatus(value: string): value is ReviewStatus {
+  return REVIEW_STATUSES.some((status) => status === value);
 }

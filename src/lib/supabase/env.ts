@@ -8,13 +8,9 @@ function isPlaceholder(value: string): boolean {
   return PLACEHOLDER_VALUES.has(value.trim());
 }
 
-export type SupabasePublicEnv = {
+type SupabasePublicEnv = {
   url: string;
   anonKey: string;
-};
-
-export type SupabaseServerEnv = SupabasePublicEnv & {
-  serviceRoleKey: string;
 };
 
 export function getSupabasePublicEnv(): SupabasePublicEnv {
@@ -40,13 +36,6 @@ export function getSupabaseServiceRoleKey(): string {
   }
 
   return serviceRoleKey;
-}
-
-export function getSupabaseServerEnv(): SupabaseServerEnv {
-  return {
-    ...getSupabasePublicEnv(),
-    serviceRoleKey: getSupabaseServiceRoleKey(),
-  };
 }
 
 export function hasSupabasePublicEnv(): boolean {

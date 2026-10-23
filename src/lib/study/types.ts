@@ -211,7 +211,6 @@ export type StudyPack = {
   flashcards: Flashcard[];
   quiz_questions: QuizQuestion[];
   teacher_questions: TeacherQuestion[];
-  cross_lesson_connections: SourcedNote[];
   conflicts: StudyConflict[];
   review_flags: string[];
   processing_warnings: string[];

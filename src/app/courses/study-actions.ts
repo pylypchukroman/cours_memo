@@ -4,10 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { requireCourseMember } from "@/lib/courses";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isCompletionStatus, isReviewStatus } from "@/lib/study/validate";
 import { isUuid } from "@/lib/time";
-
-const COMPLETIONS = new Set(["todo", "done", "unknown"]);
-const REVIEWS = new Set(["pending", "confirmed", "corrected", "dismissed"]);
 
 export async function setStudyState(formData: FormData) {
   const courseId = String(formData.get("courseId") ?? "");
@@ -20,7 +18,7 @@ export async function setStudyState(formData: FormData) {
   if (!isUuid(courseId) || !isUuid(sourceFileId) || !/^[a-f0-9]{16}$/.test(itemKey)) {
     return;
   }
-  if (!COMPLETIONS.has(completionStatus) || !REVIEWS.has(reviewStatus) || note.length > 2000) {
+  if (!isCompletionStatus(completionStatus) || !isReviewStatus(reviewStatus) || note.length > 2000) {
     return;
   }
 

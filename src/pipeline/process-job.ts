@@ -1,9 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createStructuredResponse, embedTexts } from "@/lib/openai/client";
+import { createStructuredResponse } from "@/lib/openai/client";
 import { getOpenAIEnv } from "@/lib/openai/env";
 import { logModelUse } from "@/lib/log";
 import { planReconcile, sanitizeReconcileActions } from "@/lib/memory/reconcile";
 import {
+  ITEM_TYPES,
   isItemStatus,
   isItemType,
   type ActiveMemoryItem,
@@ -12,9 +13,9 @@ import {
   type ReconcileAction,
 } from "@/lib/memory/types";
 import { ensureStudyPack } from "@/pipeline/study-pack";
+import { parseTranscript } from "@/lib/transcript/parse";
 import { chunkCues } from "@/lib/vtt/chunk";
-import { parseVtt, type Cue } from "@/lib/vtt/parse";
-import { parsePlainTranscript } from "@/lib/transcript/plain";
+import type { Cue } from "@/lib/vtt/parse";
 
 const MAX_ATTEMPTS = 3;
 
@@ -27,11 +28,9 @@ type JobRow = {
 
 type ChunkRow = {
   id: string;
-  ordinal: number;
   text: string;
-  start_ms: number;
-  end_ms: number;
-  embedding: unknown;
+  start_ms: number | null;
+  end_ms: number | null;
 };
 
 const EXTRACTION_SCHEMA = {
@@ -46,7 +45,7 @@ const EXTRACTION_SCHEMA = {
         properties: {
           item_type: {
             type: "string",
-            enum: ["concept", "task", "assessment", "promise", "correction"],
+            enum: [...ITEM_TYPES],
           },
           title: { type: "string" },
           summary: { type: "string" },
@@ -148,8 +147,7 @@ async function ensureSegments(supabase: SupabaseClient, job: JobRow) {
     throw new Error("Could not read the file from storage");
   }
 
-  const transcript = (await downloaded.data.text()).replace(/^\uFEFF/, "");
-  const cues = transcript.trimStart().startsWith("WEBVTT") ? parseVtt(transcript) : parsePlainTranscript(transcript);
+  const cues = parseTranscript(await downloaded.data.text());
   if (cues.length === 0) {
     throw new Error("The file has no VTT cues");
   }
@@ -207,44 +205,6 @@ async function ensureChunks(supabase: SupabaseClient, job: JobRow) {
   }
 }
 
-async function ensureEmbeddings(supabase: SupabaseClient, job: JobRow) {
-  const { data, error } = await supabase
-    .from("chunks")
-    .select("id, text, embedding")
-    .eq("source_file_id", job.source_file_id)
-    .order("ordinal");
-
-  if (error || !data) {
-    throw new Error("Could not read chunks for embedding");
-  }
-
-  const missing = data.filter((chunk) => chunk.embedding == null);
-  if (missing.length === 0) {
-    return;
-  }
-
-  const { vectors, usage } = await embedTexts(missing.map((chunk) => chunk.text));
-  logModelUse({
-    route: "pipeline.embed",
-    model: getOpenAIEnv().embeddingModel,
-    inputTokens: usage.inputTokens,
-    outputTokens: usage.outputTokens,
-    userId: "worker",
-    courseId: job.course_id,
-  });
-
-  for (let index = 0; index < missing.length; index += 1) {
-    const { error: updateError } = await supabase
-      .from("chunks")
-      .update({ embedding: JSON.stringify(vectors[index]) })
-      .eq("id", missing[index].id);
-
-    if (updateError) {
-      throw new Error("Could not save the embedding");
-    }
-  }
-}
-
 async function ensureEvents(supabase: SupabaseClient, job: JobRow) {
   const { count, error } = await supabase
     .from("lesson_events")
@@ -261,7 +221,7 @@ async function ensureEvents(supabase: SupabaseClient, job: JobRow) {
 
   const { data: chunks, error: chunkError } = await supabase
     .from("chunks")
-    .select("id, ordinal, text, start_ms, end_ms, embedding")
+    .select("id, text, start_ms, end_ms")
     .eq("source_file_id", job.source_file_id)
     .order("ordinal");
 
@@ -503,8 +463,6 @@ export async function processNextJob(supabase: SupabaseClient): Promise<boolean>
     await ensureSegments(supabase, job);
     await setStage(supabase, job.id, "chunk");
     await ensureChunks(supabase, job);
-    await setStage(supabase, job.id, "embed");
-    await ensureEmbeddings(supabase, job);
     await setStage(supabase, job.id, "extract");
     await ensureEvents(supabase, job);
     await setStage(supabase, job.id, "reconcile");

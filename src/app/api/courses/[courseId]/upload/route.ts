@@ -5,8 +5,7 @@ import { NextResponse } from "next/server";
 import { requireCourseMember } from "@/lib/courses";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeTimezone } from "@/lib/study/dates";
-import { parsePlainTranscript } from "@/lib/transcript/plain";
-import { parseVtt } from "@/lib/vtt/parse";
+import { parseTranscript } from "@/lib/transcript/parse";
 
 export const runtime = "nodejs";
 
@@ -48,17 +47,9 @@ export async function POST(
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const transcript = bytes.toString("utf8").replace(/^\uFEFF/, "");
-  const cues = transcript.trimStart().startsWith("WEBVTT") ? parseVtt(transcript) : parsePlainTranscript(transcript);
+  const cues = parseTranscript(bytes.toString("utf8"));
   if (cues.length === 0) {
     return NextResponse.json({ error: "The file has no transcript text." }, { status: 400 });
-  }
-
-  const { data: allowed, error: limitError } = await access.supabase.rpc("consume_rate_limit", {
-    target_action: "upload",
-  });
-  if (limitError || allowed !== true) {
-    return NextResponse.json({ error: "Too many uploads. Try again in an hour." }, { status: 429 });
   }
 
   const sha256 = createHash("sha256").update(bytes).digest("hex");
@@ -73,9 +64,16 @@ export async function POST(
     return NextResponse.json({ error: "This transcript is already in the course.", fileId: existing.id }, { status: 409 });
   }
 
+  const { data: allowed, error: limitError } = await access.supabase.rpc("consume_rate_limit", {
+    target_action: "upload",
+  });
+  if (limitError || allowed !== true) {
+    return NextResponse.json({ error: "Too many uploads. Try again in an hour." }, { status: 429 });
+  }
+
   const admin = createAdminClient();
   const fileId = crypto.randomUUID();
-  const storagePath = `${courseId}/${fileId}.vtt`;
+  const storagePath = `${courseId}/${fileId}${extension.endsWith(".txt") ? ".txt" : ".vtt"}`;
 
   const uploaded = await admin.storage.from("transcripts").upload(storagePath, bytes, {
     contentType: extension.endsWith(".txt") ? "text/plain" : "text/vtt",
@@ -113,6 +111,8 @@ export async function POST(
   });
 
   if (jobError) {
+    await admin.from("source_files").delete().eq("id", fileId);
+    await admin.storage.from("transcripts").remove([storagePath]);
     return NextResponse.json({ error: "The file was stored, but the processing job was not created." }, { status: 500 });
   }
 

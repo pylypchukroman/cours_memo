@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { dueWithinDays } from "@/lib/study/dashboard";
+import { collectDashboard } from "@/lib/study/dashboard";
 import { resolveDue } from "@/lib/study/dates";
 import type { StudyContext, StudyDraft } from "@/lib/study/types";
-import { buildStudyPack, emptyDraft, overlayStudyState } from "@/lib/study/validate";
+import { buildStudyPack, emptyDraft, isStudyPack, overlayStudyState } from "@/lib/study/validate";
 import { parsePlainTranscript } from "@/lib/transcript/plain";
 
 const SEGMENTS: StudyContext["segments"] = [
@@ -301,6 +301,21 @@ describe("study pack validation", () => {
     expect(updated?.review_status).toBe("confirmed");
     expect(pack.tasks.find((item) => item.item_key === task!.item_key)?.completion_status).toBe("unknown");
   });
+
+  it("shows only required work assigned for later on the dashboard", () => {
+    const dashboard = collectDashboard([{ lessonId: "lesson-1", pack }]);
+    expect(dashboard.outstanding.map((item) => item.title)).toEqual(
+      expect.arrayContaining(["DNS troubleshooting lab", "Reading", "Install Wireshark"]),
+    );
+    expect(dashboard.outstanding.map((item) => item.title)).not.toContain("Draw the topology");
+    expect(dashboard.outstanding.map((item) => item.title)).not.toContain("Configure the DHCP scope");
+    expect(dashboard.reviewCount).toBeGreaterThan(0);
+  });
+
+  it("rejects incomplete stored study packs", () => {
+    expect(isStudyPack({ schema_version: "1.0", overview: {}, tasks: [] })).toBe(false);
+    expect(isStudyPack(pack)).toBe(true);
+  });
 });
 
 describe("dates and plain transcripts", () => {
@@ -316,10 +331,5 @@ describe("dates and plain transcripts", () => {
       { speaker: "Teacher", text: "Install Wireshark.", startMs: null, endMs: null },
       { speaker: null, text: "Optional practice is fine.", startMs: null, endMs: null },
     ]);
-  });
-
-  it("includes a confirmed deadline that falls inside the week", () => {
-    expect(dueWithinDays("2026-10-20", "2026-10-18", 7)).toBe(true);
-    expect(dueWithinDays("2026-11-02", "2026-10-18", 7)).toBe(false);
   });
 });
