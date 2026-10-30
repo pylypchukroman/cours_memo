@@ -4,11 +4,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
-export type AuthState = { error?: string; message?: string } | null;
-
-function appUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://127.0.0.1:3000";
-}
+export type AuthState = { error?: string } | null;
 
 export async function signUp(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim();
@@ -43,29 +39,6 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
   }
 
   redirect(nextPath);
-}
-
-export async function sendMagicLink(_prev: AuthState, formData: FormData): Promise<AuthState> {
-  const email = String(formData.get("email") ?? "").trim();
-  if (!email) {
-    return { error: "Enter an email for the sign-in link." };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${appUrl()}/auth/callback`,
-    },
-  });
-
-  if (error) {
-    return { error: "Could not send the link. Try again later." };
-  }
-
-  return {
-    message: "Link sent. Locally, the email appears in Mailpit on port 54324.",
-  };
 }
 
 export async function signOut() {
