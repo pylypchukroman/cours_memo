@@ -50,18 +50,6 @@ export function UploadForm({ courseId }: { courseId: string }) {
         <Input name="lessonDate" type="date" />
       </label>
       <label className="grid gap-1 text-sm">
-        Timezone
-        <Input name="timezone" defaultValue="Australia/Sydney" maxLength={64} />
-      </label>
-      <label className="grid gap-1 text-sm">
-        Unit code
-        <Input name="unitCode" maxLength={40} />
-      </label>
-      <label className="grid gap-1 text-sm">
-        Subject
-        <Input name="subject" maxLength={120} />
-      </label>
-      <label className="grid gap-1 text-sm">
         Transcript, .vtt or .txt, up to 5 MB
         <Input name="file" type="file" accept=".vtt,.txt,text/vtt,text/plain" required />
       </label>
