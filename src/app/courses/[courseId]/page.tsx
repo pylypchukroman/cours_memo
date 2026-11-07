@@ -114,26 +114,46 @@ export default async function CoursePage({ params }: { params: Promise<{ courseI
         </a>
       </div>
 
-      <section className="grid gap-3">
-        <h2 className="text-lg font-medium">To do</h2>
-        {dashboard.outstanding.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No required work assigned for later is still open.</p>
-        ) : (
-          <ul className="grid gap-2 text-sm">
-            {dashboard.outstanding.map((item) => (
-              <li key={item.itemKey}>
-                <a className="underline-offset-4 hover:underline" href={`#lesson-${item.lessonId}`}>
-                  {item.title}
-                </a>
-                {item.dueDate ? ` · ${item.dueDate}` : ""}
-              </li>
-            ))}
-          </ul>
-        )}
-        {dashboard.reviewCount > 0 ? (
-          <p className="text-sm text-muted-foreground">{dashboard.reviewCount} items need review because a date, requirement, or quote is uncertain.</p>
-        ) : null}
-      </section>
+      <div className="grid gap-4 md:grid-cols-2">
+        <section className="grid content-start gap-3 rounded-xl border border-border p-4">
+          <h2 className="text-lg font-medium">Homework</h2>
+          {dashboard.homework.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No open homework was found in the transcripts.</p>
+          ) : (
+            <ul className="grid gap-2 text-sm">
+              {dashboard.homework.map((item) => (
+                <li key={item.itemKey}>
+                  <a className="underline-offset-4 hover:underline" href={`#lesson-${item.lessonId}`}>
+                    {item.title}
+                  </a>
+                  {item.dueDate ? ` · ${item.dueDate}` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="grid content-start gap-3 rounded-xl border border-border p-4">
+          <h2 className="text-lg font-medium">Other work</h2>
+          {dashboard.outstanding.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No other required work is still open.</p>
+          ) : (
+            <ul className="grid gap-2 text-sm">
+              {dashboard.outstanding.map((item) => (
+                <li key={item.itemKey}>
+                  <a className="underline-offset-4 hover:underline" href={`#lesson-${item.lessonId}`}>
+                    {item.title}
+                  </a>
+                  {item.dueDate ? ` · ${item.dueDate}` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+      {dashboard.reviewCount > 0 ? (
+        <p className="text-sm text-muted-foreground">{dashboard.reviewCount} items need review because a date, requirement, or quote is uncertain.</p>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
         <Card>

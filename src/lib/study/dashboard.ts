@@ -17,9 +17,11 @@ function visible(task: StudyTask): boolean {
 }
 
 export function collectDashboard(lessons: DashboardLesson[]): {
+  homework: DashboardItem[];
   outstanding: DashboardItem[];
   reviewCount: number;
 } {
+  const homework: DashboardItem[] = [];
   const outstanding: DashboardItem[] = [];
   let reviewCount = 0;
 
@@ -35,7 +37,11 @@ export function collectDashboard(lessons: DashboardLesson[]): {
         dueDate: task.due.date,
       };
       if (task.requirement_level === "required" && task.timing === "assigned_later") {
-        outstanding.push(item);
+        if (task.category === "homework") {
+          homework.push(item);
+        } else {
+          outstanding.push(item);
+        }
       }
       if (task.evidence_quality !== "clear" || task.review_flags.length > 0) {
         reviewCount += 1;
@@ -45,5 +51,5 @@ export function collectDashboard(lessons: DashboardLesson[]): {
     reviewCount += lesson.pack.conflicts.length;
   }
 
-  return { outstanding, reviewCount };
+  return { homework, outstanding, reviewCount };
 }
